@@ -86,6 +86,8 @@ def check_gitignore(git_root, io, ask=True):
     gitignore_file = Path(git_root) / ".gitignore"
     if gitignore_file.exists():
         content = io.read_text(gitignore_file)
+        if content is None:
+            return
         if pat in content.splitlines():
             return
     else:

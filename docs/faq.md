@@ -9,6 +9,8 @@
 - [Can I change the system prompts that aider uses?](#can-i-change-the-system-prompts-that-aider-uses)
 - [Can I run aider in Google Colab?](#can-i-run-aider-in-google-colab)
 - [How can I run aider locally from source code?](#how-can-i-run-aider-locally-from-source-code)
+- [Can I script aider?](#can-i-script-aider)
+- [What code languages does aider support?](#what-code-languages-does-aider-support)
 
 ## How does aider use git?
 
@@ -244,3 +246,84 @@ pip install -r requirements.txt
 # Run the local version of Aider:
 python -m aider.main
 ```
+
+# Can I script aider?
+
+You can script aider via the command line or python.
+
+## Command line
+
+Aider takes a `--message` argument, where you can give it a natural language instruction.
+It will do that one thing, apply the edits to the files and then exit.
+So you could do:
+
+```bash
+aider --message "make a script that prints hello" hello.js
+```
+
+Or you can write simple shell scripts to apply the same instruction to many files:
+
+```bash
+for FILE in *.py ; do
+    aider --message "add descriptive docstrings to all the functions" $FILE
+done
+```
+
+## Python
+
+You can also script aider from python:
+
+```python
+from aider.coders import Coder
+
+# This is a list of files to add to the chat
+fnames = ["foo.py"]
+
+# Create a coder object
+coder = Coder.create(fnames=fnames)
+
+# This will execute one instruction on those files and then return
+coder.run("make a script that prints hello world")
+
+# Send another instruction
+coder.run("make it say goodbye")
+```
+
+## What code languages does aider support?
+
+Aider supports pretty much all the popular coding languages.
+This is partly because GPT-4 is fluent in most mainstream languages,
+and familiar with popular libraries, packages and frameworks.
+
+In fact, coding with aider is sometimes the most magical
+when you're working in a language that you
+are less familiar with.
+GPT often knows the language better than you,
+and can generate all the boilerplate to get to the heart of your
+problem.
+GPT will often solve your problem in an elegant way
+using a library or package that you weren't even aware of.
+
+Aider uses tree-sitter to do code analysis and help
+GPT navigate larger code bases by producing
+a [repository map](https://aider.chat/docs/repomap.html).
+
+Aider can currently produce repository maps for most mainstream languages, listed below.
+But aider should work quite well for other languages, even without repo map support.
+
+- C
+- C#
+- C++
+- Emacs Lisp
+- Elixir
+- Elm
+- Go
+- Java
+- Javascript
+- OCaml
+- PHP
+- Python
+- QL
+- Ruby
+- Rust
+- Typescript
