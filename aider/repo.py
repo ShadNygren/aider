@@ -16,7 +16,8 @@ class GitRepo:
     aider_ignore_spec = None
     aider_ignore_ts = 0
 
-    def __init__(self, io, fnames, git_dname, aider_ignore_file=None):
+    def __init__(self, io, fnames, git_dname, aider_ignore_file=None, client=None):
+        self.client = client
         self.io = io
 
         if git_dname:
@@ -39,6 +40,8 @@ class GitRepo:
                 repo_path = utils.safe_abs_path(repo_path)
                 repo_paths.append(repo_path)
             except git.exc.InvalidGitRepositoryError:
+                pass
+            except git.exc.NoSuchPathError:
                 pass
 
         num_repos = len(set(repo_paths))
@@ -102,9 +105,7 @@ class GitRepo:
 
     def get_commit_message(self, diffs, context):
         if len(diffs) >= 4 * 1024 * 4:
-            self.io.tool_error(
-                f"Diff is too large for {models.GPT35.name} to generate a commit message."
-            )
+            self.io.tool_error("Diff is too large to generate a commit message.")
             return
 
         diffs = "# Diffs:\n" + diffs
@@ -120,7 +121,7 @@ class GitRepo:
         ]
 
         for model in models.Model.commit_message_models():
-            commit_message = simple_send_with_retries(model.name, messages)
+            commit_message = simple_send_with_retries(self.client, model.name, messages)
             if commit_message:
                 break
 
@@ -195,16 +196,20 @@ class GitRepo:
         files.extend(staged_files)
 
         # convert to appropriate os.sep, since git always normalizes to /
-        res = set(
-            str(Path(PurePosixPath((Path(self.root) / path).relative_to(self.root))))
-            for path in files
-        )
+        res = set(self.normalize_path(path) for path in files)
 
-        return self.filter_ignored_files(res)
+        res = [fname for fname in res if not self.ignored_file(fname)]
 
-    def filter_ignored_files(self, fnames):
+        return res
+
+    def normalize_path(self, path):
+        return str(Path(PurePosixPath((Path(self.root) / path).relative_to(self.root))))
+
+    def ignored_file(self, fname):
         if not self.aider_ignore_file or not self.aider_ignore_file.is_file():
-            return fnames
+            return
+
+        fname = self.normalize_path(fname)
 
         mtime = self.aider_ignore_file.stat().st_mtime
         if mtime != self.aider_ignore_ts:
@@ -215,14 +220,14 @@ class GitRepo:
                 lines,
             )
 
-        return [fname for fname in fnames if not self.aider_ignore_spec.match_file(fname)]
+        return self.aider_ignore_spec.match_file(fname)
 
     def path_in_repo(self, path):
         if not self.repo:
             return
 
         tracked_files = set(self.get_tracked_files())
-        return path in tracked_files
+        return self.normalize_path(path) in tracked_files
 
     def abs_root_path(self, path):
         res = Path(self.root) / path

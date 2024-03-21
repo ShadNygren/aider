@@ -6,6 +6,7 @@ import tempfile
 from io import StringIO
 from pathlib import Path
 from unittest import TestCase
+from unittest.mock import patch
 
 import git
 
@@ -14,7 +15,7 @@ from aider.coders import Coder
 from aider.commands import Commands
 from aider.dump import dump  # noqa: F401
 from aider.io import InputOutput
-from tests.utils import ChdirTemporaryDirectory, GitTemporaryDirectory, make_repo
+from aider.utils import ChdirTemporaryDirectory, GitTemporaryDirectory, make_repo
 
 
 class TestCommands(TestCase):
@@ -22,6 +23,10 @@ class TestCommands(TestCase):
         self.original_cwd = os.getcwd()
         self.tempdir = tempfile.mkdtemp()
         os.chdir(self.tempdir)
+
+        self.patcher = patch("aider.coders.base_coder.check_model_availability")
+        self.mock_check = self.patcher.start()
+        self.mock_check.return_value = True
 
     def tearDown(self):
         os.chdir(self.original_cwd)
@@ -492,3 +497,75 @@ class TestCommands(TestCase):
             commands.cmd_drop(str(fname))
 
             self.assertEqual(len(coder.abs_fnames), 0)
+
+    def test_cmd_undo_with_dirty_files_not_in_last_commit(self):
+        with GitTemporaryDirectory() as repo_dir:
+            repo = git.Repo(repo_dir)
+            io = InputOutput(pretty=False, yes=True)
+            coder = Coder.create(models.GPT35, None, io)
+            commands = Commands(io, coder)
+
+            other_path = Path(repo_dir) / "other_file.txt"
+            other_path.write_text("other content")
+            repo.git.add(str(other_path))
+
+            # Create and commit a file
+            filename = "test_file.txt"
+            file_path = Path(repo_dir) / filename
+            file_path.write_text("first content")
+            repo.git.add(filename)
+            repo.git.commit("-m", "aider: first commit")
+
+            file_path.write_text("second content")
+            repo.git.add(filename)
+            repo.git.commit("-m", "aider: second commit")
+
+            # Store the commit hash
+            last_commit_hash = repo.head.commit.hexsha[:7]
+            coder.last_aider_commit_hash = last_commit_hash
+
+            file_path.write_text("dirty content")
+
+            # Attempt to undo the last commit
+            commands.cmd_undo("")
+
+            # Check that the last commit is still present
+            self.assertEqual(last_commit_hash, repo.head.commit.hexsha[:7])
+
+            # Put back the initial content (so it's not dirty now)
+            file_path.write_text("second content")
+            other_path.write_text("dirty content")
+
+            commands.cmd_undo("")
+            self.assertNotEqual(last_commit_hash, repo.head.commit.hexsha[:7])
+
+            del coder
+            del commands
+            del repo
+
+    def test_cmd_add_aiderignored_file(self):
+        with GitTemporaryDirectory():
+            repo = git.Repo()
+
+            fname1 = "ignoreme1.txt"
+            fname2 = "ignoreme2.txt"
+            fname3 = "dir/ignoreme3.txt"
+
+            Path(fname2).touch()
+            repo.git.add(str(fname2))
+            repo.git.commit("-m", "initial")
+
+            aignore = Path(".aiderignore")
+            aignore.write_text(f"{fname1}\n{fname2}\ndir\n")
+
+            io = InputOutput(yes=True)
+            coder = Coder.create(
+                models.GPT4, None, io, fnames=[fname1, fname2], aider_ignore_file=str(aignore)
+            )
+            commands = Commands(io, coder)
+
+            commands.cmd_add(f"{fname1} {fname2} {fname3}")
+
+            self.assertNotIn(fname1, str(coder.abs_fnames))
+            self.assertNotIn(fname2, str(coder.abs_fnames))
+            self.assertNotIn(fname3, str(coder.abs_fnames))

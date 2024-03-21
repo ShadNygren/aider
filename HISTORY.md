@@ -1,4 +1,96 @@
+
 # Release history
+
+### v0.26.1
+
+- Fixed bug affecting parsing of git config in some environments.
+
+### v0.26.0
+
+- Use GPT-4 Turbo by default.
+- Added `-3` and `-4` switches to use GPT 3.5 or GPT-4 (non-Turbo).
+- Bug fix to avoid reflecting local git errors back to GPT.
+- Improved logic for opening git repo on launch.
+
+### v0.25.0
+
+- Issue a warning if user adds too much code to the chat.
+  - https://aider.chat/docs/faq.html#how-can-i-add-all-the-files-to-the-chat
+- Vocally refuse to add files to the chat that match `.aiderignore`
+  - Prevents bug where subsequent git commit of those files will fail.
+- Added `--openai-organization-id` argument.
+- Show the user a FAQ link if edits fail to apply.
+- Made past articles part of https://aider.chat/blog/
+
+### v0.24.1
+
+- Fixed bug with cost computations when --no-steam in effect
+
+### v0.24.0
+
+- New `/web <url>` command which scrapes the url, turns it into fairly clean markdown and adds it to the chat.
+- Updated all OpenAI model names, pricing info
+- Default GPT 3.5 model is now `gpt-3.5-turbo-0125`.
+- Bugfix to the `!` alias for `/run`.
+
+### v0.23.0
+
+- Added support for `--model gpt-4-0125-preview` and OpenAI's alias `--model gpt-4-turbo-preview`. The `--4turbo` switch remains an alias for `--model gpt-4-1106-preview` at this time.
+- New `/test` command that runs a command and adds the output to the chat on non-zero exit status.
+- Improved streaming of markdown to the terminal.
+- Added `/quit` as alias for `/exit`.
+- Added `--skip-check-update` to skip checking for the update on launch.
+- Added `--openrouter` as a shortcut for `--openai-api-base https://openrouter.ai/api/v1`
+- Fixed bug preventing use of env vars `OPENAI_API_BASE, OPENAI_API_TYPE, OPENAI_API_VERSION, OPENAI_API_DEPLOYMENT_ID`.
+
+### v0.22.0
+
+- Improvements for unified diff editing format.
+- Added ! as an alias for /run.
+- Autocomplete for /add and /drop now properly quotes filenames with spaces.
+- The /undo command asks GPT not to just retry reverted edit.
+
+### v0.21.1
+
+- Bugfix for unified diff editing format.
+- Added --4turbo and --4 aliases for --4-turbo.
+
+### v0.21.0
+
+- Support for python 3.12.
+- Improvements to unified diff editing format.
+- New `--check-update` arg to check if updates are available and exit with status code.
+
+### v0.20.0
+
+- Add images to the chat to automatically use GPT-4 Vision, by @joshuavial
+
+- Bugfixes:
+  - Improved unicode encoding for `/run` command output, by @ctoth
+  - Prevent false auto-commits on Windows, by @ctoth
+
+### v0.19.1
+
+- Removed stray debug output.
+
+### v0.19.0
+
+- [Significantly reduced "lazy" coding from GPT-4 Turbo due to new unified diff edit format](https://aider.chat/docs/unified-diffs.html)
+  - Score improves from 20% to 61% on new "laziness benchmark".
+  - Aider now uses unified diffs by default for `gpt-4-1106-preview`.
+- New `--4-turbo` command line switch as a shortcut for `--model gpt-4-1106-preview`.
+
+### v0.18.1
+
+- Upgraded to new openai python client v1.3.7.
+
+### v0.18.0
+
+- Improved prompting for both GPT-4 and GPT-4 Turbo.
+  - Far fewer edit errors from GPT-4 Turbo (`gpt-4-1106-preview`).
+  - Significantly better benchmark results from the June GPT-4 (`gpt-4-0613`). Performance leaps from 47%/64% up to 51%/71%.
+- Fixed bug where in-chat files were marked as both read-only and ready-write, sometimes confusing GPT.
+- Fixed bug to properly handle repos with submodules.
 
 ### v0.17.0
 

@@ -1,5 +1,5 @@
 import unittest
-from unittest.mock import patch
+from unittest.mock import MagicMock
 
 from aider.models import Model, OpenRouterModel
 
@@ -10,7 +10,10 @@ class TestModels(unittest.TestCase):
         self.assertEqual(model.max_context_tokens, 4 * 1024)
 
         model = Model.create("gpt-3.5-turbo-16k")
-        self.assertEqual(model.max_context_tokens, 16 * 1024)
+        self.assertEqual(model.max_context_tokens, 16385)
+
+        model = Model.create("gpt-3.5-turbo-1106")
+        self.assertEqual(model.max_context_tokens, 16385)
 
         model = Model.create("gpt-4")
         self.assertEqual(model.max_context_tokens, 8 * 1024)
@@ -18,38 +21,34 @@ class TestModels(unittest.TestCase):
         model = Model.create("gpt-4-32k")
         self.assertEqual(model.max_context_tokens, 32 * 1024)
 
-        model = Model.create("gpt-4-0101")
+        model = Model.create("gpt-4-0613")
         self.assertEqual(model.max_context_tokens, 8 * 1024)
 
-        model = Model.create("gpt-4-32k-2123")
-        self.assertEqual(model.max_context_tokens, 32 * 1024)
+    def test_openrouter_model_properties(self):
+        client = MagicMock()
 
-    @patch("openai.Model.list")
-    def test_openrouter_model_properties(self, mock_model_list):
-        import openai
+        class ModelData:
+            def __init__(self, id, object, context_length, pricing):
+                self.id = id
+                self.object = object
+                self.context_length = context_length
+                self.pricing = pricing
 
-        old_base = openai.api_base
-        openai.api_base = "https://openrouter.ai/api/v1"
-        mock_model_list.return_value = {
-            "data": [
-                {
-                    "id": "openai/gpt-4",
-                    "object": "model",
-                    "context_length": "8192",
-                    "pricing": {"prompt": "0.00006", "completion": "0.00012"},
-                }
-            ]
-        }
-        mock_model_list.return_value = type(
-            "", (), {"data": mock_model_list.return_value["data"]}
-        )()
+        model_data = ModelData(
+            "openai/gpt-4", "model", "8192", {"prompt": "0.00006", "completion": "0.00012"}
+        )
 
-        model = OpenRouterModel("gpt-4")
+        class ModelList:
+            def __init__(self, data):
+                self.data = data
+
+        client.models.list.return_value = ModelList([model_data])
+
+        model = OpenRouterModel(client, "gpt-4")
         self.assertEqual(model.name, "openai/gpt-4")
         self.assertEqual(model.max_context_tokens, 8192)
         self.assertEqual(model.prompt_price, 0.06)
         self.assertEqual(model.completion_price, 0.12)
-        openai.api_base = old_base
 
 
 if __name__ == "__main__":

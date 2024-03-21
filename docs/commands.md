@@ -6,6 +6,7 @@
 ## context management
 - `/add <file>`: Add matching files to the chat session using glob patterns
 - `/drop <file>`: Remove matching files from the chat session
+- `/web <url>`: Add the contents of a webpage to the chat
 - `/clear`: Clear the chat history
 - `/ls`: List all known files and those included in the chat session
 - `/tokens`: Report on the number of tokens used by the current chat context
@@ -17,7 +18,8 @@
 - `/git <command>`: Run a git command
 
 ## other
-- `/run <command>`: Run a shell command and optionally add the output to the chat
+- `/run <command>`: Run a shell command and optionally add the output to the chat, or use `!<command>`.
+- `/test <command>`: Like run, but automatically adds the output to the chat on non-zero exit codes.
 - `/voice`: Speak to aider to [request code changes with your voice](https://aider.chat/docs/voice.html).
 
 # Prompt Toolkit defaults

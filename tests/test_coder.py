@@ -10,7 +10,7 @@ from aider import models
 from aider.coders import Coder
 from aider.dump import dump  # noqa: F401
 from aider.io import InputOutput
-from tests.utils import ChdirTemporaryDirectory, GitTemporaryDirectory
+from aider.utils import ChdirTemporaryDirectory, GitTemporaryDirectory
 
 
 class TestCoder(unittest.TestCase):
@@ -331,22 +331,25 @@ class TestCoder(unittest.TestCase):
         # both files should still be here
         self.assertEqual(len(coder.abs_fnames), 2)
 
-    @patch("aider.coders.base_coder.openai.ChatCompletion.create")
-    def test_run_with_invalid_request_error(self, mock_chat_completion_create):
+    def test_run_with_invalid_request_error(self):
         with ChdirTemporaryDirectory():
             # Mock the IO object
             mock_io = MagicMock()
 
-            # Initialize the Coder object with the mocked IO and mocked repo
-            coder = Coder.create(models.GPT4, None, mock_io)
+            mock_client = MagicMock()
 
-            # Set up the mock to raise InvalidRequestError
-            mock_chat_completion_create.side_effect = openai.error.InvalidRequestError(
-                "Invalid request", "param"
+            # Initialize the Coder object with the mocked IO and mocked repo
+            coder = Coder.create(models.GPT4, None, mock_io, client=mock_client)
+
+            # Set up the mock to raise
+            mock_client.chat.completions.create.side_effect = openai.BadRequestError(
+                message="Invalid request",
+                response=MagicMock(),
+                body=None,
             )
 
             # Call the run method and assert that InvalidRequestError is raised
-            with self.assertRaises(openai.error.InvalidRequestError):
+            with self.assertRaises(openai.BadRequestError):
                 coder.run(with_message="hi")
 
     def test_new_file_edit_one_commit(self):
@@ -574,6 +577,34 @@ two
 
             diff = saved_diffs[0]
             self.assertIn("file.txt", diff)
+
+    def test_skip_aiderignored_files(self):
+        with GitTemporaryDirectory():
+            repo = git.Repo()
+
+            fname1 = "ignoreme1.txt"
+            fname2 = "ignoreme2.txt"
+            fname3 = "dir/ignoreme3.txt"
+
+            Path(fname2).touch()
+            repo.git.add(str(fname2))
+            repo.git.commit("-m", "initial")
+
+            aignore = Path(".aiderignore")
+            aignore.write_text(f"{fname1}\n{fname2}\ndir\n")
+
+            io = InputOutput(yes=True)
+            coder = Coder.create(
+                models.GPT4,
+                None,
+                io,
+                fnames=[fname1, fname2, fname3],
+                aider_ignore_file=str(aignore),
+            )
+
+            self.assertNotIn(fname1, str(coder.abs_fnames))
+            self.assertNotIn(fname2, str(coder.abs_fnames))
+            self.assertNotIn(fname3, str(coder.abs_fnames))
 
 
 if __name__ == "__main__":
